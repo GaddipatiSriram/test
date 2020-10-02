@@ -26,12 +26,12 @@ int main (void)
     /* Initialize philosopher semaphores (s[]) using sem_create() */
 	for(int index = 0; index < N ; index++)
 	{
-		s[index] = sem_create(key+index , 0); 
+		s[index] = sem_create(key++ , 0); 
 	}
 	
 
     /* Initialize critical section mutex using sem_create() */
-    mutex = sem_create(key+1 , 1); 
+    mutex = sem_create(key, 1); 
     
     /* Launch the philosopher threads */
 	for(int index = 0; index < N ; index++)
