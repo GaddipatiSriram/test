@@ -31,7 +31,7 @@ int main (void)
 	
 
     /* Initialize critical section mutex using sem_create() */
-    mutex = sem_create(key+5 , 5); 
+    mutex = sem_create(key+1 , 1); 
     
     /* Launch the philosopher threads */
 	for(int index = 0; index < N ; index++)
