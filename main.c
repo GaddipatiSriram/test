@@ -18,22 +18,25 @@ int main (void)
 {
     /* Setup needed local variables */
     pthread_t thread[N];
+    int value[5] = {0,1,2,3,4};
+    key_t key = 1234 ;
     /* Initialize non-interleaving printing using initPrinting() */
 	mutex = initPrinting();
 
     /* Initialize philosopher semaphores (s[]) using sem_create() */
 	for(int index = 0; index < N ; index++)
 	{
-		s[index] = sem_create(index ,0); 
+		s[index] = sem_create(index , 0); 
 	}
 	
 
     /* Initialize critical section mutex using sem_create() */
-
+    mutex = sem_create(5 , 5); 
+    
     /* Launch the philosopher threads */
 	for(int index = 0; index < N ; index++)
 	{
-	  pthread_create(thread[index], NULL, philosopher, (void *)index);
+	  pthread_create(&thread[index], NULL, philosopher, (void *) &value[index]);
 	}
      /* Wait for all the philosophers threads to finish */
     for(int index = 0; index < N ; index++)
@@ -45,7 +48,7 @@ int main (void)
         This MUST BE DONE! */
 	for(int index = 0; index < N ; index++)
 	{
-		s[index] = sem_create(index ,0); 
+		sem_close(s[index]); 
 	}
 
     endPrinting();
