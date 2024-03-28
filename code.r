@@ -1,7 +1,7 @@
-
-
 library(DEGraph)
+library(fdANOVA)
 library(multtest)
+library(future.apply)
 
 ###############################################functions###############################################
 
@@ -195,30 +195,54 @@ wy <- function(x,y,m){
 }
 
 
+
+
+
+
+
+
+
+
 ###############################################simulation###############################################
 
 
 # Define collections of parameters
-parameter_sets <- list(
-  list(m = 10, n_1 = 50, n_2 = 50, s_1 = 0.05, s_2 = 0.05))
+parameter_sets <- list( list(m = 10, n_1 = 20, n_2 = 30, s_1 = 0.05, s_2 = 0.05),
+  list(m = 10, n_1 = 20, n_2 = 30, s_1 = 0.2, s_2 = 0.2),
+  list(m = 10, n_1 = 20, n_2 = 30, s_1 = 0.2, s_2 = 0.4),
+  list(m = 10, n_1 = 20, n_2 = 30, s_1 = 0.4, s_2 = 0.2),
+  list(m = 10, n_1 = 20, n_2 = 30, s_1 = 0.2, s_2 = 0.8),
+  list(m = 10, n_1 = 20, n_2 = 30, s_1 = 0.8, s_2 = 0.2),
+  list(m = 10, n_1 = 40, n_2 = 60, s_1 = 0.05, s_2 = 0.05),
+  list(m = 10, n_1 = 40, n_2 = 60, s_1 = 0.2, s_2 = 0.2),
+  list(m = 10, n_1 = 40, n_2 = 60, s_1 = 0.2, s_2 = 0.4),
+  list(m = 10, n_1 = 40, n_2 = 60, s_1 = 0.4, s_2 = 0.2),
+  list(m = 10, n_1 = 40, n_2 = 60, s_1 = 0.2, s_2 = 0.8),
+  list(m = 10, n_1 = 40, n_2 = 60, s_1 = 0.8, s_2 = 0.2),
+  list(m = 15, n_1 = 20, n_2 = 30, s_1 = 0.05, s_2 = 0.05),
+  list(m = 15, n_1 = 20, n_2 = 30, s_1 = 0.2, s_2 = 0.2),
+  list(m = 15, n_1 = 20, n_2 = 30, s_1 = 0.2, s_2 = 0.4),
+  list(m = 15, n_1 = 20, n_2 = 30, s_1 = 0.4, s_2 = 0.2),
+  list(m = 15, n_1 = 20, n_2 = 30, s_1 = 0.2, s_2 = 0.8),
+  list(m = 15, n_1 = 20, n_2 = 30, s_1 = 0.8, s_2 = 0.2),
+  list(m = 15, n_1 = 40, n_2 = 60, s_1 = 0.05, s_2 = 0.05),
+  list(m = 15, n_1 = 40, n_2 = 60, s_1 = 0.2, s_2 = 0.2),
+  list(m = 15, n_1 = 40, n_2 = 60, s_1 = 0.2, s_2 = 0.4),
+  list(m = 15, n_1 = 40, n_2 = 60, s_1 = 0.4, s_2 = 0.2),
+  list(m = 15, n_1 = 40, n_2 = 60, s_1 = 0.2, s_2 = 0.8),
+  list(m = 15, n_1 = 40, n_2 = 60, s_1 = 0.8, s_2 = 0.2) )
+
 
 # Define list of functions
-function_list <- list(
-  maxt, AN, SF, truncated_chi, truncated_F, makambi, hartung, wy
-)
+function_list <- list( maxt, AN, SF, truncated_chi, truncated_F, makambi, hartung, wy )
 
-# Initialize a matrix to store the final results for each parameter set and each function
-results <- matrix(nrow = length(parameter_sets), ncol = length(function_list))
 
-# Loop over different parameter sets
-for (p in seq_along(parameter_sets)) {
-  # Extract parameter values from the current parameter set
-  params <- parameter_sets[[p]]
+# Define your function to be applied in parallel
+parallel_function <- function(params) {
+  pval <- matrix(nrow = 1000, ncol = length(function_list)) # Adjusted matrix size
   
-  
-  pval <- matrix(nrow=10,ncol=8)
-  for (z in 1:10) {
-    stats <- matrix(ncol = 8, nrow = 21)
+  for (z in 1:1000) { # Increase outer loop iterations
+    stats <- matrix(ncol = length(function_list), nrow = 2001) # Adjusted matrix size
     m <- params$m
     t <- seq(from = 0, to = 1, length.out = m)
     n_1 <- params$n_1
@@ -232,32 +256,40 @@ for (p in seq_along(parameter_sets)) {
     y$group <- c("B")
     data <- rbind(x, y)
     
-    # Calculate the test statistic using the current function
-    for (f in seq_along(function_list)) {stats[1, f] <- function_list[[f]](x, y, m)}  
+    for (f in seq_along(function_list)) {
+      stats[1, f] <- function_list[[f]](x, y, m)
+    }  
     
-    for (i in 1:20) {
-      #INNER LOOP
+    for (i in 1:2000) { # Increase inner loop iterations
       data$group <- sample(data$group, replace = FALSE)
-      x <- subset(data, data$group=="A")
-      y <- subset(data, data$group=="B")
-      for (f in seq_along(function_list)) {stats[i + 1, f] <- function_list[[f]](x, y, m)}  #loop through 7 functions
-      cat("Parameter set:", p, "- Outer loop index (z):", z, "- Inner loop index (i):", i, "\n")
+      x <- subset(data, data$group == "A")
+      y <- subset(data, data$group == "B")
+      for (f in seq_along(function_list)) {
+        stats[i + 1, f] <- function_list[[f]](x, y, m)
+      }
     }
     
-    #Calculate p-value
-    for (col in 1:ncol(stats)) {pval[z,col] <- sum(stats[-1, col] > stats[1, col]) }
+    for (col in 1:ncol(stats)) {
+      pval[z, col] <- sum(stats[-1, col] > stats[1, col])
+    }
   }
-  pval <- pval/20
+  pval <- pval / 2000 # Adjusted division
   
-  # Store the final result for the current parameter set and function
-  for (col in 1:ncol(pval)) {results[p,col] <- sum( pval[, col] <= 0.05 ) }
-  results <- results/10
+  results <- matrix(0, nrow = 1, ncol = length(function_list))
+  for (col in 1:ncol(pval)) {
+    results[1, col] <- sum(pval[, col] <= 0.05)
+  }
+  results <- results / 1000 # Adjusted division
+  colnames(results) <- c("maxt", "AN", "SF", "truncated_chi", "truncated_F", "makambi", "hartung", "wy")
+  rownames(results) <- paste("Parameter", p, sep = "")
+  results
 }
 
-# Print the results for each parameter set and function
-colnames(results) <- c("maxt", "AN", "SF", "truncated_chi", "truncated_F", "makambi", "hartung","wy")
-rownames(results) <- c("Parameter1")
+# Apply the function in parallel to parameter sets
+future_results <- future_lapply(parameter_sets, parallel_function, future.seed = TRUE)
 
+# Retrieve results
+results <- as.data.frame(future_results)
 print(results)
 
 
