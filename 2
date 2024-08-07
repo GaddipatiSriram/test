@@ -1,101 +1,60 @@
+# Palo Alto SDWAN Configuration Playbook
 
-- name: Panorama Config Playbook
-  hosts: all
-  gather_facts: no
-  connection: local
-  vars_files:
-    - sdwan_vars.yaml
+This repository contains Ansible playbooks designed for configuring Palo Alto Panorama and SDWAN setups. The playbooks facilitate creating and managing network objects, zones, virtual routers, and security policies on Panorama, as well as associating VPC endpoints with sub-interfaces on Palo Alto devices for SDWAN deployments.
 
-  vars:
-    provider:
-      ip_address: '{{ inventory_hostname }}'
-      username: '{{ username | default(omit) }}'
-      password: '{{ password | default(omit) }}'
+## Prerequisites
 
-  tasks:
-    - name: Refresh facts to clear the cache
-      ansible.builtin.setup:
-        gather_subset: '!all'
+- Ansible installed on your local machine.
+- Access to the target Palo Alto and Panorama devices.
+- A `sdwan_vars.yaml` file containing necessary credentials and configurations.
+- Palo Alto and Panorama devices should be accessible from the machine running the playbook.
 
-    - name: Get the system info
-      paloaltonetworks.panos.panos_op:
-        provider: '{{ provider }}'
-        cmd: 'show system info'
-      register: res
+## Playbooks Overview
 
-    - name: Show the system info
-      ansible.builtin.debug:
-        msg: '{{ res.stdout }}'
+### 1. Panorama Config Playbook
 
-    - name: Create Panorama Objects
-      ansible.builtin.include_role:
-        name: pano/create_objects
+This playbook configures Panorama by creating objects, zones, virtual routers, and security rules. It also pushes SDWAN template configurations to managed devices.
 
-    - name: Create Panorama  Object Group
-      ansible.builtin.include_role:
-        name: pano/create_object_group
+#### Tasks
 
-    - name: Create Zones
-      ansible.builtin.include_role:
-        name: pano/create_zones
+- **Refresh Facts:** Clears the cache by gathering minimal system information.
+- **Get System Info:** Retrieves system information from the Panorama device.
+- **Create Panorama Objects:** Uses the `create_objects` role to define network objects.
+- **Create Panorama Object Group:** Uses the `create_object_group` role to organize network objects into groups.
+- **Create Zones:** Uses the `create_zones` role to set up security zones.
+- **Create Virtual Routers:** Uses the `create_virtual_routers` role to configure virtual routers.
+- **Create Sub Interfaces:** Uses the `create_sub_interfaces` role to define network sub-interfaces.
+- **Create Panorama Security Rules:** Uses the `create_security_policies` role to define security rules for the network, allowing specific traffic.
+- **Push SDWAN Template Configs:** Commits and pushes SDWAN template configurations to Panorama, forcing template values where necessary.
 
-    - name: Create Virtual Routers
-      ansible.builtin.include_role:
-        name: pano/create_virtual_routers
+#### Variables
 
-    - name: Create Sub Interfaces
-      ansible.builtin.include_role:
-        name: pano/create_sub_interfaces
+- `provider`: Contains connection details for the Panorama device, including `ip_address`, `username`, and `password`.
+- `rule_name`, `source_zone`, `destination_zone`, `source_ip`, `destination_ip`, `application`, `service`, `action`, `tag_name`, `commit`, `device_group`: Define the parameters for the security rules.
+- `template_name`: The name of the template to be pushed and committed.
 
-    - name: Create panorama security rules
-      ansible.builtin.include_role:
-        name: pano/create_security_policies
-      vars:
-        rule_name: '{{ security_rule_name }}'
-        source_zone: ['{{ zone_name }}']
-        destination_zone: ['{{ zone_name }}']
-        source_ip: ['{{ object_group_name }}']
-        destination_ip: ['{{ object_group_name }}']
-        application: ['dtls']
-        service: ['application-default']
-        action: 'allow'
-        tag_name: [] 
-        commit: false
-        device_group: '{{ device_group_name }}'
+### 2. Palo Alto SDWAN Config Playbook
 
-    - name: push SDWAN Template configs and force values
-      paloaltonetworks.panos.panos_commit_push:
-        provider: '{{ provider }}'
-        style: 'template'
-        name: '{{ template_name }}'
-        force_template_values: true
+This playbook configures Palo Alto devices to associate VPC endpoints with specific sub-interfaces, crucial for SDWAN setups.
 
-- name: Palo Alto SDWAN Config Playbook
-  hosts: all
-  gather_facts: no
-  connection: local
-  vars_files:
-    - sdwan_vars.yaml
+#### Tasks
 
-  tasks:
-    - name: Debug command
-      ansible.builtin.debug:
-        msg: "Executing command: request plugins vm_series aws gwlb associate vpc-endpoint '{{ vpce_name }}' interface '{{ sub_interface_name }}' on {{ device.ip_address }}"
-      loop: '{{ palo_alto_devices }}'
-      loop_control:
-        loop_var: device
+- **Debug Command:** Outputs a debug message with the command to associate VPC endpoints.
+- **Add VPCE:** Associates a VPC endpoint with a specified sub-interface on each Palo Alto device using the `panos_op` module.
 
-    - name: Add VPCE
-      paloaltonetworks.panos.panos_op:
-        provider: '{{ provider }}'
-        cmd: "request plugins vm_series aws gwlb associate vpc-endpoint {{ vpce_name }} interface {{ sub_interface_name }}"
+#### Variables
 
-      with_items: '{{ palo_alto_devices }}'
-      loop_control:
-        loop_var: device
-      vars:
-        provider:
-          ip_address: '{{ device.ip_address }}'
-          username: '{{ device.username }}'
-          password: '{{ device.password }}'
-        panorama_primary_ip: '{{ inventory_hostname }}'
+- `palo_alto_devices`: A list of Palo Alto devices, each defined with `ip_address`, `username`, and `password`.
+- `provider`: Contains connection details for each Palo Alto device.
+- `vpce_name`: The name of the VPC endpoint to be associated.
+- `sub_interface_name`: The name of the sub-interface for the association.
+
+## How to Use
+
+1. Ensure that your `sdwan_vars.yaml` file is correctly configured with necessary variables such as device IP addresses, usernames, passwords, and other configuration details.
+2. Update your Ansible inventory file to include the target Palo Alto and Panorama devices.
+3. Run the playbooks using Ansible:
+
+   ```bash
+   ansible-playbook -i inventory panorama_config_playbook.yaml
+   ansible-playbook -i inventory palo_alto_sdwan_config_playbook.yaml
