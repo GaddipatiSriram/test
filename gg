@@ -1,0 +1,5 @@
+Warning: use -cacerts option to access cacerts keystore
+keytool error: java.security.KeyStoreException: Unrecognized keystore format. Please load it with a specified type
+
+Cert: gitlab.dev-frhns.private
+ARN: arn:aws-us-gov:acm:us-gov-west-1:212131593525:certificate/2cca6edb-6094-45ce-8bb4-d356f34b587a
