@@ -1,81 +1,57 @@
----
-- name: Palo Alto Config Playbook
-  hosts: all
-  gather_facts: no
-  connection: local
-  vars_files:
-    - vars.yaml
+# Palo Alto Configuration Playbook
 
-  tasks:
-    - name: Add Panorama to Palo Alto device
-      ansible.builtin.include_role:
-        name: palo/add_pano_ip
-      with_items: '{{ palo_alto_devices }}'
-      loop_control:
-        loop_var: device
-      vars:
-        provider:
-          ip_address: '{{ device.ip_address }}'
-          username: '{{ device.username }}'
-          password: '{{ device.password }}'
-        panorama_primary_ip: '{{ inventory_hostname }}'
+This repository contains Ansible playbooks designed to manage configurations on Palo Alto networks. The playbooks facilitate the addition of Panorama IP addresses to Palo Alto devices and configure Panorama itself with various elements like device groups, templates, and network components.
 
+## Prerequisites
 
-- name: Panorama Config Playbook
-  hosts: all
-  gather_facts: no
-  connection: local
-  vars_files:
-    - vars.yaml
+- Ansible installed on your local machine.
+- Access to the target Palo Alto and Panorama devices.
+- A `vars.yaml` file containing necessary credentials and configurations.
+- Palo Alto and Panorama devices should be accessible from the machine running the playbook.
 
-  vars:
-    provider:
-      ip_address: '{{ inventory_hostname }}'
-      username: '{{ username | default(omit) }}'
-      password: '{{ password | default(omit) }}'
+## Playbooks Overview
 
-  tasks:
-    - name: Refresh facts to clear the cache
-      ansible.builtin.setup:
-        gather_subset: '!all'
+### 1. Palo Alto Config Playbook
 
-    - name: Get the system info
-      paloaltonetworks.panos.panos_op:
-        provider: '{{ provider }}'
-        cmd: 'show system info'
-      register: res
+This playbook is used to add a Panorama IP to Palo Alto devices. It targets all hosts defined in your inventory file and requires a list of Palo Alto devices specified in the `vars.yaml` file.
 
-    - name: Show the system info
-      ansible.builtin.debug:
-        msg: '{{ res.stdout }}'
+#### Tasks
 
-    - name: Create device group
-      ansible.builtin.include_role:
-        name: pano/create_device_group
+- **Add Panorama to Palo Alto Device:** Uses the `add_pano_ip` role to add the Panorama IP address to each Palo Alto device listed in `palo_alto_devices`.
 
-    - name: Create Template 
-      ansible.builtin.include_role:
-        name: pano/create_template
+#### Variables
 
-    - name: Create Template Stack
-      ansible.builtin.include_role:
-        name: pano/create_template_stack
+- `palo_alto_devices`: A list of Palo Alto devices, each defined with `ip_address`, `username`, and `password`.
+- `provider`: Contains connection details for each Palo Alto device.
+- `panorama_primary_ip`: The Panorama IP address to be configured on the device.
 
-    - name: Create Virtual Routers
-      ansible.builtin.include_role:
-        name: pano/create_virtual_routers
+### 2. Panorama Config Playbook
 
-    - name: Create Zones
-      ansible.builtin.include_role:
-        name: pano/create_zones
+This playbook configures Panorama by setting up device groups, templates, virtual routers, zones, and sub-interfaces. It also performs a template commit and push to apply configurations to managed devices.
 
-    - name: Create Sub Interfaces
-      ansible.builtin.include_role:
-        name: pano/create_sub_interfaces
+#### Tasks
 
-    - name: push template configs and force values
-      paloaltonetworks.panos.panos_commit_push:
-        provider: '{{ provider }}'
-        style: 'template'
-        name: '{{ template_name }}'
-        force_template_values: true
+- **Refresh Facts:** Clears the cache by gathering minimal system information.
+- **Get System Info:** Retrieves system information from the Panorama device.
+- **Create Device Group:** Uses the `create_device_group` role to define device groups.
+- **Create Template:** Uses the `create_template` role to set up a template.
+- **Create Template Stack:** Uses the `create_template_stack` role to organize templates into stacks.
+- **Create Virtual Routers:** Uses the `create_virtual_routers` role to configure virtual routers.
+- **Create Zones:** Uses the `create_zones` role to set up security zones.
+- **Create Sub Interfaces:** Uses the `create_sub_interfaces` role to define network sub-interfaces.
+- **Push Template Configs:** Commits and pushes template configurations to Panorama, forcing template values where necessary.
+
+#### Variables
+
+- `provider`: Contains connection details for the Panorama device, including `ip_address`, `username`, and `password`.
+- `template_name`: The name of the template to be pushed and committed.
+
+## How to Use
+
+1. Ensure that your `vars.yaml` file is correctly configured with necessary variables such as device IP addresses, usernames, and passwords.
+2. Update your Ansible inventory file to include the target Palo Alto and Panorama devices.
+3. Run the playbooks using Ansible:
+
+   ```bash
+   ansible-playbook -i inventory palo_alto_config_playbook.yaml
+   ansible-playbook -i inventory panorama_config_playbook.yaml
