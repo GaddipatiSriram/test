@@ -1,0 +1,3 @@
+ C:\Program Files\ServiceNow MID Server mid-<mid_tag>01-<region>-prpd\agent\jre\bin
+.\keytool.exe -import -alias gitlab.private -file "c:\gitlab-cert.pem" -keystore "C:\Program Files\ServiceNow MID Server mid-api01-west-dev\agent\jre\lib\security\cacerts"
+
