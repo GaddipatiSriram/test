@@ -1,6 +1,8 @@
 - name: Fetch AWS ACM certificate details
   amazon.aws.aws_acm_facts:
     region: us-gov-west-1
+    cross_account_role_arn: '{{ acm_iam_role_arn }}'
+    role_session_name: midserver_acm_session
   register: acm_facts
 
 - name: Find the certificate by domain name
