@@ -1,15 +1,197 @@
-- name: Add device to device group via API
-  paloaltonetworks.panos.panos_op:
-    provider: '{{ provider }}'
-    cmd: |
-      <set>
-        <device-group>
-          <entry name="{{ device_group_name }}">
-            <devices>
-              <entry name="{{ item }}" />
-            </devices>
-          </entry>
-        </device-group>
-      </set>
-    commit: true
-  loop: '{{ device_serial_numbers }}'
+stages:
+  - validate
+  - test
+  - build
+  - deploy
+  - destroy
+
+include:
+  - template: Terraform.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+variables:
+  TF_STATE_NAME: "development"
+  SECURE_ANALYZERS_PREFIX: "$CI_REGISTRY/container-registry/security-products"
+  # CA & Ansible Vars
+  PLAYBOOK_URL: "git@gitlab.dev-frhns.private:product/network/sdwan/deployments/templates/sdwan-playbooks/tgw-playbook.git"
+  PLAYBOOK_URL_SNMP: "git@gitlab.dev-frhns.private:product/network/sdwan/deployments/templates/sdwan-playbooks/tgw-snmp-playbook.git"
+  CA_API_URL: "https://pam.dev-frhns.private"
+  CA_APP_ID: "Ansible_CCP"
+  CA_PREFIX: "ca-service-user"
+  A1_PREFIX: "a1-service-user"
+  CA_API_UNAME: "AAM_VaultUser"
+  SCM_ID: 164
+  EXEC_ENV_ID: 17
+  A1_HOST: "https://api.vscdev.verizongov.com"
+  A1_USERNAME: "sdwan-snmprotation"
+  REGION: "${TF_VAR_playbook_region}"
+image: "$CI_REGISTRY/container-registry/terraform-images/1.5:aws544"
+
+.aap_job:
+  image: "$CI_REGISTRY/container-registry/ansible-images/ee-supported-rhel8:1.0"
+
+deploy:
+  stage: deploy
+  environment:
+    name: $TF_STATE_NAME
+    action: start
+  resource_group: ${TF_STATE_NAME}
+  script:
+    - gitlab-terraform apply
+    - echo "ADMIN_USER=$(gitlab-terraform output -raw tgw_admin_user)" >> tf_output_vars.env
+    - echo "ADMIN_PW=$(gitlab-terraform output -raw tgw_admin_pw)" >> tf_output_vars.env
+    - echo "VZ_USER=$(gitlab-terraform output -raw tgw_vz_user)" >> tf_output_vars.env
+    - echo "CUSTOMER_NAME=$(gitlab-terraform output -raw name)" >> tf_output_vars.env
+    - echo "PROJECT_NAME=$(gitlab-terraform output -raw product_name_ca)-$(gitlab-terraform output -raw playbook_region)" >> tf_output_vars.env
+    - echo "PROJECT_NAME_SNMP=$(gitlab-terraform output -raw product_name_ca)-snmp-$(gitlab-terraform output -raw playbook_region)" >> tf_output_vars.env
+    - echo "HOST_MGMT_DNS=$(gitlab-terraform output -raw mgmt_dns)" >> tf_output_vars.env
+    - echo "ENV=$(gitlab-terraform output -raw env)" >> tf_output_vars.env
+    - echo "RESTORE=$(gitlab-terraform output -raw restore)" >> tf_output_vars.env
+    - echo "SNAPSHOT_ID=$(gitlab-terraform output -raw restore_snapshot_id)" >> tf_output_vars.env
+    - echo "TARGET_ACCOUNT_ID=$(gitlab-terraform output -raw target_account_id)" >> tf_output_vars.env
+    - echo "TGW_INSTANCE_ID=$(gitlab-terraform output -raw tengw_instance_id)" >> tf_output_vars.env
+    - USERS_JSON=$(gitlab-terraform output -json users)
+    - echo "USERS=$USERS_JSON" >> tf_output_vars.env
+    - echo $USERS
+    - source tf_output_vars.env
+    - case $ENV in "dev") PREFIX="D";; "preprod") PREFIX="PP";; "prod") PREFIX="P";; esac
+    - echo "APP_SAFE=${PREFIX}-SSH-${CUSTOMER_NAME}-SDWAN" >> tf_output_vars.env
+    - echo "A1_SAFE=${PREFIX}-WebApp-Assure1" >> tf_output_vars.env
+    - echo "CA_SAFE=${PREFIX}-WebApp-CACCP" >> tf_output_vars.env
+    - echo "APP_PLATFORM_ID=${PREFIX}-SSH-SDWAN-NonManaged" >> tf_output_vars.env
+    
+  artifacts:
+    reports:
+      dotenv: tf_output_vars.env
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $TF_AUTO_DEPLOY == "true"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+
+dr:
+  stage: deploy
+  needs:
+    - job: deploy
+  image:
+    name: "docker.io/amazon/aws-cli"
+    entrypoint: [""]
+    pull_policy: if-not-present
+  script:
+    - curl -sL -o /tmp/jq-linux-amd64 'https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64'
+    - chmod u+x /tmp/jq-linux-amd64
+    - mv /tmp/jq-linux-amd64 /usr/bin/jq
+    - chmod u+x ./aws_cli/ebs_dr.sh
+    - ./aws_cli/ebs_dr.sh
+  rules:
+    - if: $RESTORE == "true" && $SNAPSHOT_ID != null && $SNAPSHOT_ID != ""
+
+ca_onboard:
+  extends: .aap_job
+  needs:
+    - job: deploy
+    - job: dr
+      optional: true   
+  stage: deploy
+  script:
+    - echo $HOST_MGMT_DNS
+    - awx -k job_templates launch ca-onboard-account --monitor -e "{
+      'ca_address':'${HOST_MGMT_DNS}', 'ca_api_base_url':'${CA_API_URL}', 'ca_api_uname':'${CA_API_UNAME}',
+      'ca_app_id':'${CA_APP_ID}','ca_logon_domain':'${ENV}', 'app_platform_id':'${APP_PLATFORM_ID}',
+      'app_safe':'${APP_SAFE}', 'ca_safe':'${CA_SAFE}', 'cert_dir_ee':'/var/tmp', 'ca_prefix':'${CA_PREFIX}',
+      'ca_account_username':'${ADMIN_USER}', 'ca_account_password':'${ADMIN_PW}',
+      'pass_type':'base64', 'run_once':'always' }"
+
+    - awx -k job_templates launch ca-onboard-account --monitor -e "{
+      'ca_address':'${HOST_MGMT_DNS}', 'ca_api_base_url':'${CA_API_URL}', 'ca_api_uname':'${CA_API_UNAME}',
+      'ca_app_id':'${CA_APP_ID}','ca_logon_domain':'${ENV}', 'app_platform_id':'${APP_PLATFORM_ID}',
+      'app_safe':'${APP_SAFE}', 'ca_safe':'${CA_SAFE}', 'cert_dir_ee':'/var/tmp', 'ca_prefix':'${CA_PREFIX}',
+      'ca_account_username':'${VZ_USER}', 'ca_account_password':'${ADMIN_PW}',
+      'pass_type':'base64', 'run_once':'always' }"
+
+    - awx -k job_templates launch ca-onboard-account --monitor -e "{
+      'ca_address':'${HOST_MGMT_DNS}', 'ca_api_base_url':'${CA_API_URL}', 'ca_api_uname':'${CA_API_UNAME}',
+      'ca_app_id':'${CA_APP_ID}','ca_logon_domain':'${ENV}', 'app_platform_id':'${APP_PLATFORM_ID}',
+      'app_safe':'${APP_SAFE}', 'ca_safe':'${CA_SAFE}', 'cert_dir_ee':'/var/tmp', 'ca_prefix':'${CA_PREFIX}',
+      'ca_account_username':'enable', 'ca_account_password':'${ADMIN_PW}',
+      'pass_type':'base64', 'run_once':'always' }"
+
+ansible_template:
+  extends: .aap_job
+  needs:
+    - job: deploy
+    - job: dr
+      optional: true
+    - job: ca_onboard
+  stage: deploy
+  script:
+    - echo $USERS
+    - |
+      for var in \
+        INVENTORY_USER_API_KEY CONTROLLER_HOST CUSTOMER_NAME \
+        PROJECT_NAME PLAYBOOK_URL HOST_MGMT_DNS \
+        CA_API_URL APP_PLATFORM_ID \
+        APP_SAFE CA_SAFE\
+        CA_APP_ID CA_PREFIX ENV \
+        USERS SCM_ID EXEC_ENV_ID
+      do
+        value=$(eval echo \${$var})
+        if [ "$var" = "USERS" ]; then
+          value=$(echo $value | sed 's/^"//;s/"$//')
+          sed -i -e "s|\"@$var@\"|$value|g" data.json
+        else
+          sed -i -e "s|@$var@|$value|g" data.json
+        fi
+      done
+    - cat data.json
+    - awx -k job_templates launch --name "aap_onboarding" --extra_vars="@data.json"
+
+ansible_template_snmp:
+  extends: .aap_job
+  needs:
+    - job: deploy
+    - job: dr
+      optional: true
+    - job: ca_onboard
+  stage: deploy
+  script:
+    - echo $USERS
+    - |
+      for var in \
+        INVENTORY_USER_API_KEY CONTROLLER_HOST CUSTOMER_NAME \
+        PROJECT_NAME_SNMP PLAYBOOK_URL_SNMP HOST_MGMT_DNS \
+        CA_API_URL APP_PLATFORM_ID \
+        TGW_SNMP_AUTH_PLATFORM_ID TGW_SNMP_PRIV_PLATFORM_ID \
+        CA_APP_ID CA_PREFIX A1_PREFIX ENV \
+        SNMP_USER SCM_ID EXEC_ENV_ID \
+        A1_USERNAME A1_HOST \
+        A1_SAFE APP_SAFE CA_SAFE
+      do
+        value=$(eval echo \${$var})
+        sed -i -e "s|@$var@|$value|g" data_snmp.json
+      done
+    - cat data_snmp.json
+    - awx -k job_templates launch --name "aap_onboarding" --extra_vars="@data_snmp.json"
+
+ansible_template_snmp_trigger:
+  extends: .aap_job
+  needs:
+    - job: deploy
+    - job: ca_onboard
+    - job: ansible_template_snmp
+  stage: deploy
+  script:
+    - |
+    - echo $CUSTOMER_NAME
+    - echo $REGION
+    - awx -k job_templates launch --name "$CUSTOMER_NAME-tgw-snmp-$REGION"
+
+destroy:
+  stage: destroy
+  script:
+    - gitlab-terraform destroy
+  environment:
+    name: $TF_STATE_NAME
+    action: stop
+  resource_group: ${TF_STATE_NAME}
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $TF_DESTROY == "true"
