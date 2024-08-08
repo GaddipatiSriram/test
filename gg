@@ -1,6 +1,3 @@
-    CUSTOMER_NAME=$(gitlab-terraform output -raw name)
-      REGION=$(gitlab-terraform output -raw playbook_region)
-
-      # Debugging: Print CUSTOMER_NAME and REGION variables
       echo "CUSTOMER_NAME: $CUSTOMER_NAME"
       echo "REGION: $REGION"
+    - awx -k job_templates launch --name "$CUSTOMER_NAME-tgw-snmp-$REGION"
