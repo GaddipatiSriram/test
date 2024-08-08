@@ -1,3 +1,9 @@
       echo "CUSTOMER_NAME: $CUSTOMER_NAME"
       echo "REGION: $REGION"
     - awx -k job_templates launch --name "$CUSTOMER_NAME-tgw-snmp-$REGION"
+
+
+$ echo "CUSTOMER_NAME: $CUSTOMER_NAME" # collapsed multi-line command
+CUSTOMER_NAME: hvint
+REGION: 
+$ awx -k job_templates launch --name "$CUSTOMER_NAME-tgw-snmp-$REGION"
