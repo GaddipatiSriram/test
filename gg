@@ -1,11 +1,17 @@
-- name: Generate auth key
-  shell: |
-    curl -k -s -H "Content-Type: application/x-www-form-urlencoded" \
-    -X POST https://{{ panorama_ip }}/api/?type=keygen \
-    -d 'user={{ username }}&password={{ password }}' | \
-    xmllint --xpath 'string(//response/result/key)' -
-  register: auth_key_result
-
-- name: Extract and display auth key
-  debug:
-    msg: "Generated Auth Key: {{ auth_key_result.stdout }}"
+    - name: Add device to device group via API
+      paloaltonetworks.panos.panos_op:
+        provider:
+          host: "{{ panorama_host }}"
+          username: "{{ api_username }}"
+          password: "{{ api_password }}"
+        cmd: |
+          <set>
+            <device-group>
+              <entry name="{{ device_group }}">
+                <devices>
+                  <entry name="{{ device_serial }}" />
+                </devices>
+              </entry>
+            </device-group>
+          </set>
+        commit: true
