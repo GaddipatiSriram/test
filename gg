@@ -15,23 +15,22 @@ palo_alto_devices:
   #   serial_number: '007955000454380'
 
 device_group_name: "Palo PreProd Gov West"
-template_name: "Subinterface"-Routing-Zone-TPL"
+template_name: "Subinterface-Routing-Zone-TPL"
 template_stack_name: "Palo-preprod-west-1a-fw"
-vr_name : sdwan-vr
+vr_name: sdwan-vr
 device_serial_numbers:
-  - 007955000457648
-  # - 007955000454380
+  - '007955000457648'
+  # - '007955000454380'
 interface_name: "ethernet1/3"
 
 # changes per customer
-zone_name: "sdwan-{{ customer_name }}-zone"    
-sub_interface_name: ethernet1/3.100 
-sub_interface_tag: 100 
+zone_name: "sdwan-{{ customer_name }}-zone"
+sub_interface_name: ethernet1/3.100
+sub_interface_tag: 100
 object_group_name: "west-{{ customer_name }}-object-group"
-security_rule_name: "west-{{ customer_name }}-rule" 
+security_rule_name: "west-{{ customer_name }}-rule"
 
-vpce_name: 'vpce-02c4e6g8ha97h6e49' 
-security_rules_objects: 
-  - {name: '{{ customer_name }}-tengw-eip-west', value: '56.136.46.150', description: '{{ customer_name }}-tengw-eip-west', tag: []}
-  - {name: '{{ customer_name }}-priv-ip-west', value: '172.18.132.75', description: '{{ customer_name }}-priv-ip-west', tag: []}
-
+vpce_name: "vpce-02c4e6g8ha97h6e49"
+security_rules_objects:
+  - { name: '{{ customer_name }}-tengw-eip-west', value: '56.136.46.150', description: '{{ customer_name }}-tengw-eip-west', tag: [] }
+  - { name: '{{ customer_name }}-priv-ip-west', value: '172.18.132.75', description: '{{ customer_name }}-priv-ip-west', tag: [] }
