@@ -1,0 +1,6 @@
+- name: Associate VPC endpoint with interface on each device
+  paloaltonetworks.panos.panos_op:
+    ip_address: '{{ item.ip_address }}'
+    username: '{{ item.username }}'
+    password: '{{ palo_ca_response.result.Content }}'
+    cmd: request plugins vm_series aws gwlb associate vpc-endpoint {{ vpce_name }} interface {{ sub_interface_name }}
