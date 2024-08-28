@@ -3,3 +3,22 @@ device_group_1a: Palo-preprod-west-1a
 device_group_1b: Palo-prepod-west-1b
 serial_number_1a: 007955000457648
 serial_number_1b: 007955000454380
+
+
+    - name: push to multiple devices 1a
+      paloaltonetworks.panos.panos_commit_push:
+        provider: '{{ provider }}'
+        include_template: true
+        style: 'device group'
+        name: '{{ device_group_1a }}'
+        devices: '{{ serial_number_1a }}'
+        sync: true
+
+    - name: push to multiple devices 1b
+      paloaltonetworks.panos.panos_commit_push:
+        provider: '{{ provider }}'
+        include_template: true
+        style: 'device group'
+        name: '{{ device_group_1b }}'
+        devices: '{{ serial_number_1b }}'
+        sync: true
