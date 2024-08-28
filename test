@@ -1,24 +1,19 @@
-device_group_name: "Palo PreProd Gov West"
-device_group_1a: Palo-preprod-west-1a
-device_group_1b: Palo-prepod-west-1b
-serial_number_1a: 007955000457648
-serial_number_1b: 007955000454380
+device_groups:
+  - name: Palo-preprod-west-1a
+    serial_number: 007955000457648
+  - name: Palo-prepod-west-1b
+    serial_number: 007955000454380
 
 
-    - name: push to multiple devices 1a
+- name: Push configuration to multiple devices
+  hosts: localhost
+  tasks:
+    - name: Push to multiple devices
       paloaltonetworks.panos.panos_commit_push:
         provider: '{{ provider }}'
         include_template: true
         style: 'device group'
-        name: '{{ device_group_1a }}'
-        devices: '{{ serial_number_1a }}'
+        name: '{{ item.name }}'
+        devices: '{{ item.serial_number }}'
         sync: true
-
-    - name: push to multiple devices 1b
-      paloaltonetworks.panos.panos_commit_push:
-        provider: '{{ provider }}'
-        include_template: true
-        style: 'device group'
-        name: '{{ device_group_1b }}'
-        devices: '{{ serial_number_1b }}'
-        sync: true
+      loop: "{{ device_groups }}"
