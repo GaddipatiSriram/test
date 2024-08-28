@@ -1,41 +1,5 @@
-- name: Associate VPC endpoint with interface on each device
-  paloaltonetworks.panos.panos_op:
-    ip_address: '{{ item.ip_address }}'
-    username: '{{ item.username }}'
-    password: '{{ palo_ca_response.result.Content }}'
-    cmd: request plugins vm_series aws gwlb associate vpc-endpoint {{ vpce_name }} interface {{ sub_interface_name }}
-
-
-
-{
-  "msg": "Failed to run command : request plugins vm_series aws gwlb associate vpc-endpoint vpce-02c4e6g8ha97h6e49 interface \"ethernet1/3.100\" :  request -> plugins -> vm_series -> aws -> gwlb -> associate -> vpc-endpoint is invalid",
-  "invocation": {
-    "module_args": {
-      "ip_address": "172.16.4.44",
-      "username": "admin",
-      "password": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
-      "cmd": "request plugins vm_series aws gwlb associate vpc-endpoint vpce-02c4e6g8ha97h6e49 interface ethernet1/3.100",
-      "port": 443,
-      "vsys": "vsys1",
-      "cmd_is_xml": false,
-      "provider": null,
-      "api_key": null,
-      "ignore_disconnect": null
-    }
-  },
-  "deprecations": [
-    {
-      "msg": "Classic provider params are deprecated; use \"provider\" instead",
-      "version": "3.0.0",
-      "collection_name": "paloaltonetworks.panos"
-    }
-  ],
-  "ansible_facts": {
-    "discovered_interpreter_python": "/usr/bin/python3.11"
-  },
-  "warnings": [
-    "Distribution rhel 8.10 on host 172.16.146.138 should use /usr/libexec/platform-python, but is using /usr/bin/python3.11, since the discovered platform python interpreter was not present. See https://docs.ansible.com/ansible-core/2.16/reference_appendices/interpreter_discovery.html for more information."
-  ],
-  "_ansible_no_log": null,
-  "changed": false
-}
+device_group_name: "Palo PreProd Gov West"
+device_group_1a: Palo-preprod-west-1a
+device_group_1b: Palo-prepod-west-1b
+serial_number_1a: 007955000457648
+serial_number_1b: 007955000454380
