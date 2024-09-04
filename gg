@@ -1,1 +1,43 @@
-        cmd: "<delete><admin-sessions><username>User_Name</username></admin-sessions></delete>"
+---
+- name: Close all admin sessions on Palo Alto firewall
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Retrieve all active sessions
+      panos_op:
+        provider:
+          hostname: "{{ firewall_ip }}"
+          username: "{{ firewall_username }}"
+          password: "{{ firewall_password }}"
+          api_key: "{{ firewall_api_key }}"
+        cmd: >
+          <show>
+            <session>
+              <all/>
+            </session>
+          </show>
+      register: session_info
+
+    - name: Filter admin sessions
+      set_fact:
+        admin_sessions: "{{ session_info.stdout_xml | xmltodict | json_query('response.result.entry[?(@.user == `admin`)]') }}"
+
+    - name: Display admin sessions
+      debug:
+        var: admin_sessions
+
+    - name: Close each admin session
+      loop: "{{ admin_sessions }}"
+      panos_op:
+        provider:
+          hostname: "{{ firewall_ip }}"
+          username: "{{ firewall_username }}"
+          password: "{{ firewall_password }}"
+          api_key: "{{ firewall_api_key }}"
+        cmd: >
+          <delete>
+            <session>
+              <id>{{ item.id }}</id>
+            </session>
+          </delete>
+      when: admin_sessions is defined
