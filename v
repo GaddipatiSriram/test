@@ -1,60 +1,17 @@
-security_rules:
-  - rule_name: "{{ customer_name }}-sdwan-east-allow"
-    source_ip:
-      - "{{ customer_name }}-sdwan-east"
-    destination_ip:
-      - "{{ customer_name }}-sdwan-east"
-      - cisco_urls
-    application:
-      - any
-    service:
-      - application-default
-    action: "allow"
-  
-  - rule_name: "{{ customer_name }}-sdwan-east-dtls"
-    source_ip:
-      - "{{ vz_data_center_ip }}"
-      - US
-    destination_ip:
-      - "{{ customer_name }}-sdwan-east"
-    application:
-      - cisco-viptela-ipsec-esp
-      - dtls
-    service:
-      - application-default
-    action: "allow"
-  
-  - rule_name: "{{ customer_name }}-sdwan-east-netconf"
-    source_ip:
-      - "{{ customer_name }}-sdwan-east"
-    destination_ip:
-      - "{{ customer_name }}-sdwan-east"
-    application:
-      - any
-    service:
-      - netconf
-      - TLS
-    action: "allow"
-  
-  - rule_name: "{{ customer_name }}-sdwan-east-tls"
-    source_ip:
-      - "{{ vz_data_center_ip }}"
-      - US
-    destination_ip:
-      - "{{ customer_name }}-sdwan-east"
-    application:
-      - any
-    service:
-      - TLS
-    action: "allow"
-  
-  - rule_name: "{{ customer_name }}-sdwan-east-deny"
-    source_ip:
-      - any
-    destination_ip:
-      - any
-    application:
-      - any
-    service:
-      - any
-    action: "deny"
+palo_alto_devices:
+  - ip_address: 172.16.4.167
+    username: admin
+    name: Palo-dev-west-1a
+    serial_number: '007955000395706'
+  - ip_address: 172.16.5.252
+    username: admin
+    name: Palo-dev-west-1b
+    serial_number: '007955000396093'
+  - ip_address: 172.24.20.231
+    username: admin
+    name: Palo-dev-east-1a
+    serial_number: '007955000403579'
+  - ip_address: 172.24.21.27
+    username: admin
+    name: Palo-dev-east-1b
+    serial_number: '007955000452196'
