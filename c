@@ -1,17 +1,7 @@
-- name: Loop through each user for A1 API user 
-  ansible.builtin.include_tasks: rotate_user_password.yaml
-  when: item == '{{ customer_name }}-a1-api'
-  loop: "{{ users }}"
-  loop_control:
-    loop_var: item
-  vars:
-    target_safe: '{{ a1_api_safe }}'  # Set the fact for the current iteration
+- name: Set initial device configuration as a fact
+  ansible.builtin.set_fact:
+    initial_device_config: "{{ initial_template_response.json.data }}"
 
-- name: Loop through rest of the Users
-  ansible.builtin.include_tasks: rotate_user_password.yaml
-  when: item != '{{ customer_name }}-a1-api'
-  loop: "{{ users }}"
-  loop_control:
-    loop_var: item
-  vars:
-    target_safe: '{{ app_safe }}'  # Set the fact for the current iteration
+- name: Filter device config by snmp_user
+  ansible.builtin.set_fact:
+    snmp_user_config: "{{ initial_device_config | selectattr('SNMP_USERNAME', 'equalto', snmp_username) | list }}"
